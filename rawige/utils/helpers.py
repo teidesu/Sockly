@@ -1,10 +1,13 @@
 from functools import lru_cache
-
+from threading import Timer
 from PyQt5.QtGui import QFontDatabase, QFont
 from PyQt5.QtWidgets import QLabel, QPushButton
 
 
 def iter_skip(itr, skip=0):
+    """
+    Returns an iterator that skips `skip` items in `itr` iterator
+    """
     i = 0
     while i < skip:
         next(itr)
@@ -27,6 +30,10 @@ MONOSPACE = (
 
 @lru_cache()
 def get_font(ar, *args):
+    """
+    Get first available font from available.
+    Idk how but it works at least for monospaced fonts
+    """
     db = QFontDatabase()
     for it in ar:
         if len(db.writingSystems('monospace')) > 0:
@@ -35,18 +42,27 @@ def get_font(ar, *args):
 
 
 def ellipsize(string, max_chars=60):
+    """
+    Ellipsize a string by char count, not pixels
+    """
     if len(string) <= max_chars:
         return string
     return string[:max_chars - 3] + '...'
 
 
 def label(text, *args):
+    """
+    Alias for creating a label
+    """
     el = QLabel(*args)
     el.setText(text)
     return el
 
 
 def button(text, onclick):
+    """
+    Alias for creating a button
+    """
     b = QPushButton()
     b.setText(text)
     b.clicked.connect(onclick)
@@ -54,6 +70,14 @@ def button(text, onclick):
 
 
 def hexdump(src, length=16, sep='.'):
+    """
+    Took from some gist and edited a bit. Hexdumps a binary data from `src`
+
+    :param src:
+    :param length:
+    :param sep:
+    :return:
+    """
     filter_ = ''.join(
         [(len(repr(chr(x))) == 3) and chr(x) or sep for x in range(256)]
     )
@@ -66,3 +90,24 @@ def hexdump(src, length=16, sep='.'):
             chars) is str else ''.join(['{}'.format((x <= 127 and filter_[x]) or sep) for x in chars])
         lines.append("%08x:  %-*s  |%s|" % (c, length * 3, hexstr, printable))
     return lines
+
+
+def debounce(wait):
+    """
+    Took from some gist, idr. Does exactly the same as lodash's debounce
+
+    :param wait: number of seconds to debounce
+    :return: decorator
+    """
+    def decorator(fn):
+        def debounced(*args, **kwargs):
+            def call_it():
+                fn(*args, **kwargs)
+            try:
+                debounced.t.cancel()
+            except AttributeError:
+                pass
+            debounced.t = Timer(wait, call_it)
+            debounced.t.start()
+        return debounced
+    return decorator

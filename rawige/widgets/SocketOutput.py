@@ -30,7 +30,7 @@ class SideArea(QtWidgets.QWidget):
         """
         width = max(
             self.fontMetrics().width(str(num)),
-            self.fontMetrics().width('->>')
+            self.fontMetrics().width(' ->>')
         ) + 16
         if self.width() != width:
             self.setFixedWidth(width)
@@ -58,7 +58,8 @@ class SideArea(QtWidgets.QWidget):
         for i, it in enumerate(items):
             if i != 0 and it.type != MessageTypes.SYSTEM:
                 yield ''
-            yield ['<~>', '->>', '<<-'][it.type.value]
+            pref = ['', 'J', 'X', 'B'][it.content.value]
+            yield pref + ['<~>', '->>', '<<-'][it.type.value]
             yield from range(2, len(it.lines) + 1)
 
     def paintEvent(self, ev):
@@ -130,10 +131,10 @@ class SocketOutput(QtWidgets.QWidget):
     def _get_highlighter(self, kind, typ):
         if (kind, typ) not in self._lazy_highlighters:
             hl = None
-            if kind == MessageContent.JSON:
-                hl = JsonHighlighter()
             if typ == MessageTypes.SYSTEM:
                 hl = SystemHighlighter()
+            if kind in (MessageContent.JSON, MessageContent.BSON):
+                hl = JsonHighlighter()
             if kind == MessageContent.BINARY:
                 hl = HexdumpHighlighter()
             self._lazy_highlighters[(kind, typ)] = hl

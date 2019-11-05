@@ -12,6 +12,7 @@ class MessageContent(Enum):
     PLAIN = 0
     JSON = 1
     BINARY = 2
+    BSON = 3
 
 
 SocketMessage = namedtuple('SocketMessage', 'type lines content')

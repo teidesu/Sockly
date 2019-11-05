@@ -1,13 +1,16 @@
 import base64
+import os
 import os.path
 import pickle
 
 import bson
-from PyQt5 import QtWidgets, QtGui, QtCore
+from PyQt5 import QtWidgets, QtCore
 from rawige.layouts.rawige_tab import layout_tab
 from rawige.structs import SocketMessage, MessageTypes, MessageContent
 from rawige.utils.SocketThread import SocketThread
-from rawige.utils.helpers import hexdump, ellipsize
+from rawige.utils.database import RawigeDB
+from rawige.utils.helpers import hexdump, ellipsize, debounce
+from rawige.utils.session_manager import validate_session, apply_session, create_session
 
 try:
     import ujson as json
@@ -15,26 +18,58 @@ except ImportError:
     import json
 
 
-def assert_(predicate):
-    if not predicate:
-        raise AssertionError()
-
-
 class RawigeTab(QtWidgets.QWidget):
     title_changed = QtCore.pyqtSignal(str)
+    broadcast = QtCore.pyqtSignal(str, dict, int)
 
-    def __init__(self, parent):
+    def __init__(self, parent, uid):
         super().__init__(parent)
         self.parent = parent
+        self.uid = uid
         self.history = []
         self.fav = []
-        # self.broadcast.connect(self.on_broadcast)
+        self.broadcast.connect(self.on_broadcast)
         self.state = 'idle'
         self.worker = None
         self.selected_fav = None
         self.filename = None
+        self.database = RawigeDB()
+        self._internal_splitter_update = False
         layout_tab(self)
         self.clear_output()
+        self.load_settings()
+
+    def _broadcast(self, kind, data):
+        self.parent.broadcast.emit(kind, data, self.uid)
+
+    def load_settings(self):
+        for k in ('main', 'right'):
+            wid = getattr(self, k + '_splitter')
+            wid.splitterMoved.connect(lambda _, __: self._on_splitter_update())
+            r = self.database.get_blob(k + '_splitter', None)
+            if r is not None:
+                wid.restoreState(r)
+
+        for attr in ('show_http', 'show_alive_checks', 'decode_bson'):
+            wid = getattr(self, attr)
+            wid.setChecked(bool(self.database.get_int(attr, 1)))
+            wid.stateChanged.connect(lambda t, a=attr: (
+                self.database.set_int(a, int(t)),
+                self._broadcast('checkbox', {'attr': a, 'val': t})
+            ))
+
+    @debounce(0.25)
+    def _on_splitter_update(self):
+        main_val = self.main_splitter.saveState()
+        right_val = self.right_splitter.saveState()
+
+        self._broadcast('splitters', {
+            'main': main_val,
+            'right': right_val,
+        })
+
+        self.database.set_blob('main_splitter', bytes(main_val))
+        self.database.set_blob('right_splitter', bytes(right_val))
 
     def error_state_changed(self, err):
         self.toggle_connect_btn.setEnabled(not err)
@@ -62,7 +97,16 @@ class RawigeTab(QtWidgets.QWidget):
             self.filename = self.save_as()
         else:
             with open(self.filename, 'wb') as f:
-                pickle.dump(self._create_session(), f)
+                pickle.dump(create_session(self), f)
+
+    def on_broadcast(self, kind, data, sender):
+        if sender == self.uid:
+            return
+        if kind == 'splitters':
+            self.main_splitter.restoreState(data['main'])
+            self.right_splitter.restoreState(data['right'])
+        if kind == 'checkbox':
+            getattr(self, data['attr']).setChecked(data['val'])
 
     def save_as(self):
         fname, ok = QtWidgets.QFileDialog().getSaveFileName(self, 'Choose file', filter='Rawige session (*.rwg);;'
@@ -70,7 +114,7 @@ class RawigeTab(QtWidgets.QWidget):
         if not ok:
             return None
         with open(fname, 'wb') as f:
-            pickle.dump(self._create_session(), f)
+            pickle.dump(create_session(self), f)
         return fname
 
     def open(self):
@@ -87,7 +131,7 @@ class RawigeTab(QtWidgets.QWidget):
         self._load_session(ev.mimeData().text().split("://")[1].strip(), True)
 
     def _load_session(self, filename, error_window=False):
-        ok, res = self._validate_session(filename)
+        ok, res = validate_session(filename)
         if not ok:
             if error_window:
                 a = QtWidgets.QMessageBox(self)
@@ -98,52 +142,7 @@ class RawigeTab(QtWidgets.QWidget):
                 a.show()
         else:
             self.filename = filename
-            self._apply_session(res)
-
-    @staticmethod
-    def _validate_session(filename):
-        try:
-            with open(filename, 'rb') as f:
-                data = pickle.load(f)
-                for key, typ in (
-                        ('name', str),
-                        ('url', str),
-                        ('headers', str),
-                        ('proxy_enabled', bool),
-                        ('proxy', str),
-                        ('compression', bool),
-                        ('reconnect', bool),
-                        ('show_http', bool),
-                        ('show_alive_checks', bool),
-                        ('input', str),
-                        ('mode', str),
-                        ('msg_compression', bool),
-                        ('hor_splitter', bytes),
-                        ('ver_splitter', bytes)
-                ):
-                    assert_(key in data)
-                    assert_(type(data[key]) is typ)
-                for key, validate in (
-                        ('history', lambda t: type(t) is str),
-                        ('favourites', lambda t: type(t) is dict and
-                                                 'name' in t and
-                                                 'value' in t and
-                                                 type(t['name']) is str and
-                                                 type(t['value']) is str),
-                        ('output', lambda t: type(t) is SocketMessage),
-                ):
-                    assert_(key in data)
-                    assert_(type(data[key]) is list)
-                    assert_(all((validate(t) for t in data[key])))
-                return True, data
-        except AssertionError:
-            return False, 'Session is broken'
-        except pickle.PickleError:
-            return False, 'Session parse failed'
-        except PermissionError:
-            return False, 'Permission denied'
-        except FileNotFoundError:
-            return False, 'File not found'
+            apply_session(self, res)
 
     def toggle_connect(self):
         if self.state == 'idle':
@@ -158,7 +157,6 @@ class RawigeTab(QtWidgets.QWidget):
             self.worker.terminate()
 
     def on_worker_event(self, ev):
-        print(ev)
         if ev.name == 'connecting':
             self.send_button.setEnabled(False)
             self.toggle_connect_btn.setText('Cancel')
@@ -262,9 +260,12 @@ class RawigeTab(QtWidgets.QWidget):
         if sm == 'plain_text':
             content = MessageContent.PLAIN
             data = data.split('\n')
-        elif sm in ('json', 'bson'):
+        elif sm == 'json':
             content = MessageContent.JSON
-            data = json.dumps(json.loads(data), indent=4).split('\n')
+            data = json.dumps(json.loads(data), indent=2).split('\n')
+        elif sm == 'bson':
+            content = MessageContent.BSON
+            data = json.dumps(json.loads(data), indent=2).split('\n')
         else:
             content = MessageContent.BINARY
             data = hexdump(res)
@@ -316,7 +317,7 @@ class RawigeTab(QtWidgets.QWidget):
     def add_incoming(self, data):
         self.output.items.append(SocketMessage(
             MessageTypes.INCOMING,
-            *parse_data(data)
+            *self.parse_data(data)
         ))
         self.output.notify_set_changed()
 
@@ -375,69 +376,6 @@ class RawigeTab(QtWidgets.QWidget):
         self.history_list.clear()
         self.history_list.addItems(self.history)
 
-    def _create_session(self):
-        return {
-            'name': self.tabname_input.text(),
-            'url': self.url_input.text(),
-            'headers': self.headers_input.toPlainText(),
-            'proxy_enabled': self.proxy_enabled.isChecked(),
-            'proxy': self.proxy_input.text(),
-            'compression': self.conn_use_compression.isChecked(),
-            'reconnect': self.conn_persist.isChecked(),
-            'show_http': self.show_http.isChecked(),
-            'show_alive_checks': self.show_alive_checks.isChecked(),
-            'history': self.history,
-            'favourites': self.fav,
-            'output': self.output.items,
-            'input': self.input.toPlainText(),
-            'mode': self.current_send_mode,
-            'msg_compression': self.use_compression.isChecked(),
-            'hor_splitter': bytes(self.main_splitter.saveState()),
-            'ver_splitter': bytes(self.right_splitter.saveState())
-        }
-
-    def _apply_session(self, d):
-        for key, attr in (
-                ('name', 'tabname_input'),
-                ('url', 'url_input'),
-                ('proxy', 'proxy_input'),
-                ('name', 'tabname_input'),
-        ):
-            getattr(self, attr).setText(d[key])
-        self.headers_input.setPlainText(d['headers'])
-        self.input.setPlainText(d['input'])
-        self.fav = d['favourites']
-        self.output.items = d['output']
-        self.history = d['history']
-
-        for key, attr in (
-                ('proxy_enabled', 'proxy_enabled'),
-                ('compression', 'conn_use_compression'),
-                ('reconnect', 'conn_persist'),
-                ('show_http', 'show_http'),
-                ('show_alive_checks', 'show_alive_checks'),
-                ('msg_compression', 'use_compression'),
-        ):
-            getattr(self, attr).setChecked(d[key])
-
-        self.main_splitter.restoreState(d['hor_splitter'])
-        self.right_splitter.restoreState(d['ver_splitter'])
-
-        for i in (
-                'plain_text',
-                'binary',
-                'hex',
-                'base64',
-                'json',
-                'bson',
-        ):
-            getattr(self, 'send_{}_radio'.format(i)).setChecked(i == d['mode'])
-
-        self.update_title()
-        self.update_history()
-        self.update_favs()
-        self.output.notify_set_changed()
-
     def update_title(self):
         self.title_changed.emit(self.generate_title())
 
@@ -461,23 +399,28 @@ class RawigeTab(QtWidgets.QWidget):
             ret = pref + ellipsize(name, 30)
         return ret
 
+    def parse_data(self, data):
+        text = []
+        typ = None
 
-def parse_data(data):
-    text = []
-    typ = None
+        if type(data) is bytes:
+            try:
+                if not self.decode_bson.isChecked():
+                    raise Exception()
+                text = json.dumps(bson.loads(data), indent=2).split('\n')
+                typ = MessageContent.BSON
+            except:
+                text = hexdump(data)
+                typ = MessageContent.BINARY
+        else:
+            try:
+                text = json.dumps(json.loads(data), indent=2).split('\n')
+                typ = MessageContent.JSON
+            except:
+                text = data.split('\n')
+                typ = MessageContent.PLAIN
 
-    if type(data) is bytes:
-        text = hexdump(data)
-        typ = MessageContent.BINARY
-    else:
-        try:
-            text = json.dumps(json.loads(data), indent=2).split('\n')
-            typ = MessageContent.JSON
-        except:
-            text = data.split('\n')
-            typ = MessageContent.PLAIN
-
-    return text, typ
+        return text, typ
 
 
 def format_response(rsp):

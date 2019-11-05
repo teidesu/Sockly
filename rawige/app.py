@@ -3,6 +3,8 @@ from rawige.widgets.RawigeTab import RawigeTab
 
 
 class Rawige(QtWidgets.QMainWindow):
+    broadcast = QtCore.pyqtSignal(str, dict, int)
+
     def __init__(self):
         super().__init__()
         self.widget = QtWidgets.QWidget(self)
@@ -15,7 +17,8 @@ class Rawige(QtWidgets.QMainWindow):
         self.add_tab_btn.setText('+')
         self.add_tab_btn.clicked.connect(self.add_tab)
         self.tabs_widget.setCornerWidget(self.add_tab_btn)
-
+        self.uid = 0
+        self.broadcast.connect(self.on_broadcast)
         self.add_tab()
 
         copy = QtWidgets.QLabel()
@@ -28,11 +31,11 @@ class Rawige(QtWidgets.QMainWindow):
         self.setWindowTitle('Rawige — the WebSocket client')
 
     def add_tab(self):
-        page = RawigeTab(self)
+        page = RawigeTab(self, self.uid)
+        self.uid += 1
         i = self.tabs_widget.addTab(page, '[I] New tab')
 
         page.title_changed.connect(lambda s: self.tabs_widget.setTabText(i, s))
-        # page.broadcast.connect(lambda k, s, ii=i: self.do_broadcast(k, s, ii))
         self.tabs_widget.setCurrentIndex(i)
         self.update_close_buttons()
 
@@ -53,7 +56,6 @@ class Rawige(QtWidgets.QMainWindow):
             close_btn.setText('x')
             self.tabs_widget.tabBar().setTabButton(i, QtWidgets.QTabBar.ButtonPosition.RightSide, close_btn)
 
-    def do_broadcast(self, kind, data, sender):
+    def on_broadcast(self, kind, data, sender):
         for i in range(self.tabs_widget.count()):
-            if i != sender:
-                self.tabs_widget.widget(i).broadcast.emit(kind, data)
+            self.tabs_widget.widget(i).broadcast.emit(kind, data, sender)

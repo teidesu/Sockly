@@ -79,6 +79,12 @@ def layout_left_pane(self: QtWidgets.QWidget, layt: QtWidgets.QVBoxLayout):
     self.show_alive_checks = QtWidgets.QCheckBox('Show Pings/Pongs/Polls')
     cb_row1.addWidget(self.show_alive_checks)
 
+    cb_row2 = QtWidgets.QHBoxLayout()
+    layt.addLayout(cb_row2)
+    self.decode_bson = QtWidgets.QCheckBox('Decode BSON')
+    self.decode_bson.setChecked(True)
+    cb_row2.addWidget(self.decode_bson)
+
     tabs = QtWidgets.QTabWidget()
 
     hist_wid = QtWidgets.QWidget()
@@ -172,6 +178,11 @@ def layout_right_pane(self: QtWidgets.QWidget, layt: QtWidgets.QVBoxLayout):
         btns.addWidget(wid)
     bottom_left.addLayout(btns)
     self.toggle_connect_btn.setEnabled(False)
+
+    self.send_button = button('Send', self.send)
+    self.send_button.setEnabled(False)
+    bottom_right.addWidget(self.send_button)
+
     modes_scroll = QtWidgets.QScrollArea()
     modes_scroll.setStyleSheet('QScrollArea { background: transparent; }')
     modes_scroll.setFrameShape(QtWidgets.QFrame.NoFrame)
@@ -208,10 +219,6 @@ def layout_right_pane(self: QtWidgets.QWidget, layt: QtWidgets.QVBoxLayout):
     self.use_compression = QtWidgets.QCheckBox('Use compression')
 
     bottom_right.addWidget(self.use_compression)
-
-    self.send_button = button('Send', self.send)
-    self.send_button.setEnabled(False)
-    bottom_right.addWidget(self.send_button)
 
     self.input = BetterPlainTextEdit()
     self.input.setFont(get_font(MONOSPACE))
