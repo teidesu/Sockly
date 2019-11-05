@@ -29,13 +29,13 @@ MONOSPACE = (
 
 
 @lru_cache()
-def get_font(ar, *args):
+def get_font(fonts, *args):
     """
     Get first available font from available.
     Idk how but it works at least for monospaced fonts
     """
     db = QFontDatabase()
-    for it in ar:
+    for it in fonts:
         if len(db.writingSystems('monospace')) > 0:
             return QFont(it, *args)
     return None
@@ -43,7 +43,7 @@ def get_font(ar, *args):
 
 def ellipsize(string, max_chars=60):
     """
-    Ellipsize a string by char count, not pixels
+    Ellipsize a string by char count
     """
     if len(string) <= max_chars:
         return string
@@ -54,19 +54,19 @@ def label(text, *args):
     """
     Alias for creating a label
     """
-    el = QLabel(*args)
-    el.setText(text)
-    return el
+    widget = QLabel(*args)
+    widget.setText(text)
+    return widget
 
 
 def button(text, onclick):
     """
     Alias for creating a button
     """
-    b = QPushButton()
-    b.setText(text)
-    b.clicked.connect(onclick)
-    return b
+    widget = QPushButton()
+    widget.setText(text)
+    widget.clicked.connect(onclick)
+    return widget
 
 
 def hexdump(src, length=16, sep='.'):

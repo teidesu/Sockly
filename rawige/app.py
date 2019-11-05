@@ -21,10 +21,10 @@ class Rawige(QtWidgets.QMainWindow):
         self.broadcast.connect(self.on_broadcast)
         self.add_tab()
 
-        copy = QtWidgets.QLabel()
-        copy.setText('by teidesu')
-        copy.setAlignment(QtCore.Qt.AlignRight)
-        self.layout.addWidget(copy)
+        copyright = QtWidgets.QLabel()
+        copyright.setText('by teidesu')
+        copyright.setAlignment(QtCore.Qt.AlignRight)
+        self.layout.addWidget(copyright)
 
         self.setCentralWidget(self.widget)
         self.resize(1500, 800)
