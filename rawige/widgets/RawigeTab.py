@@ -366,11 +366,11 @@ class RawigeTab(QtWidgets.QWidget):
         self.set_fav_btn.setEnabled(True)
 
     def update_favs(self):
-        self.favs_list.clear()
+        self.favourites_list.clear()
         for item in self.fav:
             it = QtWidgets.QListWidgetItem(item['name'])
             it.value = item['value']
-            self.favs_list.addItem(it)
+            self.favourites_list.addItem(it)
 
     def update_history(self):
         self.history_list.clear()
