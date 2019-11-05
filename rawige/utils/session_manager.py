@@ -1,4 +1,5 @@
 import pickle
+import traceback
 
 from rawige.structs import SocketMessage
 
@@ -20,13 +21,9 @@ def validate_session(filename):
                     ('proxy', str),
                     ('compression', bool),
                     ('reconnect', bool),
-                    ('show_http', bool),
-                    ('show_alive_checks', bool),
                     ('input', str),
                     ('mode', str),
                     ('msg_compression', bool),
-                    ('hor_splitter', bytes),
-                    ('ver_splitter', bytes)
             ):
                 assert_(key in data)
                 assert_(type(data[key]) is typ)
@@ -44,7 +41,7 @@ def validate_session(filename):
                 assert_(all((validate(t) for t in data[key])))
             return True, data
     except AssertionError:
-        return False, 'Session is broken'
+        return False, 'Session is broken: \n' + traceback.format_exc()
     except pickle.PickleError:
         return False, 'Session parse failed'
     except PermissionError:

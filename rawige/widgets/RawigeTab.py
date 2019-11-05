@@ -36,6 +36,7 @@ class RawigeTab(QtWidgets.QWidget):
         self.database = RawigeDB()
         self._internal_splitter_update = False
         layout_tab(self)
+        self.input.fileDropped.connect(self._input_file_dropped)
         self.clear_output()
         self.load_settings()
 
@@ -125,10 +126,13 @@ class RawigeTab(QtWidgets.QWidget):
         self._load_session(fname, True)
 
     def dragEnterEvent(self, ev):
-        ev.accept()
+        if ev.mimeData().text().startswith('file://'):
+            ev.accept()
+        else:
+            ev.reject()
 
     def dropEvent(self, ev):
-        self._load_session(ev.mimeData().text().split("://")[1].strip(), True)
+        self._load_session(ev.mimeData().text()[7:].strip(), True)
 
     def _load_session(self, filename, error_window=False):
         ok, res = validate_session(filename)
@@ -398,6 +402,30 @@ class RawigeTab(QtWidgets.QWidget):
         if name != '':
             ret = pref + ellipsize(name, 30)
         return ret
+
+    def _input_file_dropped(self, filename):
+        with open(filename, 'rb') as f:
+            data = f.read()
+            sm = self.current_send_mode
+            if sm in ('plain_text', 'binary'):
+                try:
+                    self.input.insertPlainText(data.decode('U8'))
+                except:
+                    pass
+            elif sm == 'hex':
+                self.input.insertPlainText(data.hex())
+            elif sm == 'base64':
+                self.input.setPlainText(base64.b64encode(data).decode())
+            elif sm == 'json':
+                try:
+                    self.input.insertPlainText(json.dumps(json.loads(data, encoding='U8'), indent=2))
+                except:
+                    pass
+            elif sm == 'bson':
+                try:
+                    self.input.insertPlainText(json.dumps(bson.loads(data), indent=2))
+                except:
+                    pass
 
     def parse_data(self, data):
         text = []
