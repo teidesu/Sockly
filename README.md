@@ -26,7 +26,7 @@ pyinstaller rawige.spec
 ## Features
  - SSL support (thanks to [lomond][1])
  - Proxy support
- - Compression suppport
+ - Compression support
  - Custom headers
  - Messages history
  - Favourite messages
