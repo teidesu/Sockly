@@ -208,6 +208,7 @@ class RawigeTab(QtWidgets.QWidget):
 
     def clear_output(self):
         self.output.items.clear()
+        self.output.notify_set_changed()
         self.add_system('Welcome to Rawige')
 
     def toggle_controls(self, val):
@@ -278,7 +279,7 @@ class RawigeTab(QtWidgets.QWidget):
             data,
             content
         ))
-        self.output.notify_set_changed()
+        self.output.notify_set_changed('append')
 
     def _validate(self, data):
         sm = self.current_send_mode
@@ -313,7 +314,7 @@ class RawigeTab(QtWidgets.QWidget):
             [text, *additional],
             MessageContent.PLAIN
         ))
-        self.output.notify_set_changed()
+        self.output.notify_set_changed('append')
 
     def add_error(self, text, *additional):
         self.add_system('Error: ' + text, *additional)
@@ -323,7 +324,7 @@ class RawigeTab(QtWidgets.QWidget):
             MessageTypes.INCOMING,
             *self.parse_data(data)
         ))
-        self.output.notify_set_changed()
+        self.output.notify_set_changed('append')
 
     def on_json(self, enabled):
         if enabled:

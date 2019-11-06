@@ -140,22 +140,26 @@ class SocketOutput(QtWidgets.QWidget):
             self._lazy_highlighters[(kind, typ)] = hl
         return self._lazy_highlighters[(kind, typ)]
 
-    def notify_set_changed(self):
+    def notify_set_changed(self, kind='update', append_number=1):
+        items = self.items if kind == 'update' else self.items[-append_number:]
         text = ''
+        base_offset = 0 if kind == 'update' else (len(self.text.toPlainText()) +
+                                                  (1 if len(self.items) - append_number else 0))
+        if kind == 'update':
+            self.text.setPlainText('')
         highlight = []
-
-        for i, item in enumerate(self.items):
-            if i != 0:
-                text += '\n\n' if item.type != MessageTypes.SYSTEM else '\n'
+        for i, item in enumerate(items):
+            if (i != 0 or kind == 'append' and base_offset > 0) and item.type != MessageTypes.SYSTEM:
+                text += '\n'
             part = '\n'.join(item.lines)
             hl = self._get_highlighter(item.content, item.type)
             if hl:
                 highlight.append((hl, part, len(text)))
             text += part
 
-        self.text.setPlainText(text)
+        if text:
+            self.text.appendPlainText(text)
         for i, (hl, part, offset) in enumerate(highlight):
-            hl.highlight(part, self.text.document(), offset, i == 0)
-
+            hl.highlight(part, self.text.document(), base_offset + offset, False)
         self.side.update()
         self.text.verticalScrollBar().setValue(self.text.verticalScrollBar().maximum())

@@ -14,7 +14,7 @@ class SimpleHighlighter:
     def init(self):
         raise NotImplemented()
 
-    def set_rule(self, pattern, fmt, group = 0):
+    def set_rule(self, pattern, fmt, group=0):
         rule = HighlightingRule(pattern, fmt, group)
         self.rules.append(rule)
 
@@ -24,6 +24,8 @@ class SimpleHighlighter:
         for pattern, fmt, group in self.rules:
             for m in re.finditer(pattern, text):
                 s, e = m.span(group)
+                if s == e:
+                    continue
                 cur = QTextCursor(document)
                 cur.setPosition(offset + s, QTextCursor.MoveAnchor)
                 cur.setPosition(offset + e, QTextCursor.KeepAnchor)
