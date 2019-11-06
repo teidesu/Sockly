@@ -23,7 +23,7 @@ class Rawige(QtWidgets.QMainWindow):
         self.add_tab()
 
         copyright = QtWidgets.QLabel()
-        copyright.setText('by teidesu')
+        copyright.setText('сделал макс')
         copyright.setAlignment(QtCore.Qt.AlignRight)
         self.layout.addWidget(copyright)
 
