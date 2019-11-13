@@ -34,4 +34,7 @@ pyinstaller sockly.spec
  - Multiple tabs
  - Multiple modes: plain, binary, hex, base64, json, bson
 
+## Disclaimer
+Idk whether this project will be maintained. Critical bugs will be fixed, but no refactor will ever be done by me, although PRs are welcome. I don't like Python and this is just a PoC app that I was forced to make. Maybe sometime I'll rewrite it in JS...
+
 [1]: (https://github.com/wildfoundry/dataplicity-lomond)
