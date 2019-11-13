@@ -1,4 +1,4 @@
-# Rawige - the WebSocket client
+# Sockly - the WebSocket client
 Small yet powerful WebSocket debugging/reversing tool. Made with Python 3 + PyQt5 frontend and
 [lomond][1] as a WebSocket library.
 
@@ -8,19 +8,19 @@ Small yet powerful WebSocket debugging/reversing tool. Made with Python 3 + PyQt
 ## Installation
 (adapt commands for your system setup, e.g substitute `python` with `python3`)
 ```bash
-git clone https://github.com/teidesu/rawige
-cd rawige
+git clone https://github.com/teidesu/sockly
+cd sockly
 # unnecessary but recommended
 python -m venv venv
 source venv/bin/activate
 # /unnecessary but recommended
 pip install -r requirements.txt
-python -m rawige
+python -m sockly
 ```
 You can then build a standalone binary:
 ```bash
 pip install pyinstaller
-pyinstaller rawige.spec 
+pyinstaller sockly.spec 
 ```
 
 ## Features
