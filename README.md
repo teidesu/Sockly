@@ -30,7 +30,7 @@ pyinstaller sockly.spec
  - Custom headers
  - Messages history
  - Favourite messages
- - Saving ans loading sessions
+ - Saving and loading sessions
  - Multiple tabs
  - Multiple modes: plain, binary, hex, base64, json, bson
 
