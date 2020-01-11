@@ -36,7 +36,7 @@ def get_font(fonts, *args):
     """
     db = QFontDatabase()
     for it in fonts:
-        if len(db.writingSystems('monospace')) > 0:
+        if len(db.writingSystems(it)) > 0:
             return QFont(it, *args)
     return None
 
